@@ -11,7 +11,7 @@ spec:
     metadata:
       labels:
         app: hello-world-node
-    spec:
+    spec: 
       serviceAccountName: my-app-ksa # Use the KSA you created/annotated
       containers:
       # Your Application Container

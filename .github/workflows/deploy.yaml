@@ -1,0 +1,52 @@
+name: Build and Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Google Cloud SDK
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: YOUR_PROJECT_ID        # Replace with your GCP project ID
+        service_account_key: ${{ secrets.GCP_SA_KEY }}   # GitHub secret
+        export_default_credentials: true
+
+    # Step 3: Authenticate Docker to Docker Hub (instead of GCR)
+    - name: Authenticate Docker to Docker Hub
+      run: |
+        echo ${{ secrets.DOCKER_USERNAME }} | docker login --username ${{ secrets.DOCKER_PASSWORD }} --password-stdin
+        # This assumes you have stored your Docker Hub credentials in GitHub Secrets:
+        # DOCKER_USERNAME and DOCKER_PASSWORD
+
+    # Step 4: Build and push Docker image to Docker Hub
+    - name: Build and push Docker image
+      run: |
+        IMAGE=docker.io/${{ secrets.DOCKER_USERNAME }}/hello-world-node:latest
+        docker build -t $IMAGE .
+        docker push $IMAGE
+
+    # Step 5: Set up kubectl to interact with GKE
+    - name: Set up kubectl
+      uses: google-github-actions/setup-kubectl@v1
+
+    # Step 6: Get GKE credentials and deploy to GKE
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --zone ${{ secrets.ZONE }} --project ${{ secrets.PROJECT_ID }}
+
+    # Step 7: Update the Kubernetes deployment with the new Docker image
+    #- name: Deploy to GKE
+    #  run: |
+    #    kubectl set image deployment/YOUR_DEPLOYMENT_NAME YOUR_CONTAINER_NAME=docker.io/YOUR_USERNAME/YOUR_APP_NAME:latest
+    #    kubectl rollout status deployment/YOUR_DEPLOYMENT_NAME

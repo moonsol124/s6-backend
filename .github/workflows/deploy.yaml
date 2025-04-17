@@ -9,52 +9,48 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    # Optional but Recommended: Add permissions for Workload Identity Federation (most secure)
+    # If using WIF, you won't need the GCP_SA_KEY secret.
+    # permissions:
+    #   contents: 'read'
+    #   id-token: 'write'
+
     steps:
     # Step 1: Checkout the code
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Authenticate with Google Cloud using the service account key
-    - name: Authenticate with Google Cloud
-      run: |
-        # Save the GCP SA key to a file
-        echo "${{ secrets.GCP_SA_KEY }}" > "${HOME}/gcloud-service-key.json"
+    # Step 2: Authenticate to Google Cloud (Replaces old Step 2 & 3)
+    # Use google-github-actions/auth action for robust authentication
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v1' # Use specific version (e.g., v1)
+      with:
+        # Option 1: Using the Service Account Key JSON (Your current method)
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-        # Debugging: Print the raw content of the JSON secret and the first few lines of the file
-        echo "Raw content of GCP SA Key secret (only showing part of it):"
-        echo "${{ secrets.GCP_SA_KEY }}" | head -n 10
+        # Option 2: Using Workload Identity Federation (Recommended, more secure, keyless)
+        # Remove 'credentials_json' above and uncomment these lines if using WIF
+        # workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
+        # service_account: 'your-service-account-email@your-project-id.iam.gserviceaccount.com'
 
-        # Print the first few lines of the file to see its content
-        echo "First few lines of the JSON file:"
-        head -n 10 "${HOME}/gcloud-service-key.json"
-
-        # Check if the file is a valid JSON file using jq
-        if jq empty "${HOME}/gcloud-service-key.json" > /dev/null 2>&1; then
-          echo "TRUE: Valid JSON"
-          # Proceed to authenticate with GCloud
-          gcloud auth activate-service-account --key-file="${HOME}/gcloud-service-key.json"
-        else
-          echo "FALSE: Invalid JSON"
-        fi
-    
-    # Step 3: Set the project ID for subsequent Google Cloud commands
-    - name: Set project ID
-      run: | 
-        gcloud config set project ${{ secrets.PROJECT_ID }}
-
-    # Step 4: Get GKE Credentials for kubectl
+    # Step 3: Get GKE Credentials (uses the authentication from the previous step)
+    # No need to explicitly set project ID with 'gcloud config set' anymore,
+    # as the 'auth' action usually handles it, but 'get-gke-credentials' still needs it.
     - name: Get GKE Credentials
+      # Ensure you use a specific version like v1
       uses: google-github-actions/get-gke-credentials@v1
       with:
-        cluster_name: ${{ secrets.CLUSTER_NAME }}  # Replace with your GKE cluster name
-        location: ${{ secrets.ZONE }}  # Replace with your GKE cluster zone or region
-        project_id: ${{ secrets.PROJECT_ID }}  # Explicitly specify the project ID
+        cluster_name: ${{ secrets.CLUSTER_NAME }}
+        location: ${{ secrets.ZONE }}      # Make sure this is correct (zone or region)
+        project_id: ${{ secrets.PROJECT_ID }} # Needs to match the project associated with your SA key or WIF setup
 
-    # Step 5: Verify Kubernetes Cluster connection
+    # Step 4: Verify Kubernetes Cluster connection
     - name: Verify Kubernetes Cluster
       run: |
+        echo "Current kubectl context:"
+        kubectl config current-context
+        echo "Nodes in the cluster:"
         kubectl get nodes
-
     # # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
     # - name: Authenticate Docker to Docker Hub
     #   run: |

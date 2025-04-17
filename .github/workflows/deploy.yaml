@@ -18,7 +18,7 @@ jobs:
     - name: Set up Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id: YOUR_PROJECT_ID        # Replace with your GCP project ID
+        project_id: ${{ secrets.PROJECT_ID }}        # Replace with your GCP project ID
         service_account_key: ${{ secrets.GCP_SA_KEY }}   # GitHub secret
         export_default_credentials: true
 

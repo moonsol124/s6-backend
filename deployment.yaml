@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-world-node
+  name: hello-world-node # Should match your K8S_DEPLOYMENT_NAME secret
 spec:
   replicas: 1
   selector:
@@ -13,7 +13,12 @@ spec:
         app: hello-world-node
     spec:
       containers:
-      - name: hello-world-node
-        image: moonsol124/hello-world-node:latest
+      # Your Application Container
+      - name: hello-world-node # Should match your K8S_CONTAINER_NAME secret
+        image: moonsol124/hello-world-node:latest # This image tag will be updated by your workflow
+        imagePullPolicy: Always # Ensures K8s checks for new images even if tag is 'latest'
         ports:
-        - containerPort: 3000
+        - containerPort: 3000 # The port your Node.js app listens on
+        envFrom: # Inject environment variables from the specified Secret
+        - secretRef:
+            name: db-credentials # The name of the Kubernetes Secret you created

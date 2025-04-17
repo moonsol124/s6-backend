@@ -2,3 +2,4 @@ deploy.sh
 .env
 node_modules/
 npm-debug.log
+db-secret.yaml

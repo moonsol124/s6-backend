@@ -22,7 +22,7 @@ jobs:
     
     # Step 3: Set the project ID for subsequent Google Cloud commands
     - name: Set project ID
-      run: |
+      run: | 
         gcloud config set project ${{ secrets.PROJECT_ID }}
 
     # Step 4: Get GKE Credentials for kubectl
@@ -37,7 +37,7 @@ jobs:
     - name: Verify Kubernetes Cluster
       run: |
         kubectl get nodes
-        
+
     # # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
     # - name: Authenticate Docker to Docker Hub
     #   run: |

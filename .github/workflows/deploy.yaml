@@ -14,40 +14,48 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # step 2: set up google cloud
-    - name: Set up Google Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ secrets.PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
+    # Step 2: Authenticate with Google Cloud using the service account key
+    - name: Authenticate with Google Cloud
+      run: |
+        echo "${{ secrets.GCP_SA_KEY }}" > "${HOME}/gcloud-service-key.json"
+        gcloud auth activate-service-account --key-file="${HOME}/gcloud-service-key.json"
+    
+    # Step 3: Set the project ID for subsequent Google Cloud commands
+    - name: Set project ID
+      run: |
+        gcloud config set project ${{ secrets.PROJECT_ID }}
 
-    # Step 3: Get GKE Credentials for kubectl
+    # Step 4: Get GKE Credentials for kubectl
     - name: Get GKE Credentials
       uses: google-github-actions/get-gke-credentials@v1
       with:
-        cluster_name: ${{ secrets.CLUSTER_NAME }}   # Replace with your GKE cluster name
+        cluster_name: ${{ secrets.CLUSTER_NAME }}  # Replace with your GKE cluster name
         location: ${{ secrets.ZONE }}  # Replace with your GKE cluster zone or region
-        project_id: ${{ secrets.PROJECT_ID }} # Explicitly specify the project ID
+        project_id: ${{ secrets.PROJECT_ID }}  # Explicitly specify the project ID
 
-    # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
-    - name: Authenticate Docker to Docker Hub
+    # Step 5: Verify Kubernetes Cluster connection
+    - name: Verify Kubernetes Cluster
       run: |
-        echo ${{ secrets.DOCKER_PASSWORD }} | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        kubectl get nodes
+        
+    # # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
+    # - name: Authenticate Docker to Docker Hub
+    #   run: |
+    #     echo ${{ secrets.DOCKER_PASSWORD }} | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
 
-    # Step 5: Build and push Docker image to Docker Hub
-    - name: Build and push Docker image
-      run: |
-        IMAGE=docker.io/${{ secrets.DOCKER_USERNAME }}/hello-world-node:latest
-        docker build -t $IMAGE .
-        docker push $IMAGE
+    # # Step 5: Build and push Docker image to Docker Hub
+    # - name: Build and push Docker image
+    #   run: |
+    #     IMAGE=docker.io/${{ secrets.DOCKER_USERNAME }}/hello-world-node:latest
+    #     docker build -t $IMAGE .
+    #     docker push $IMAGE
 
-    # Step 6: Install and configure kubectl using gcloud
-    - name: Install and configure kubectl
-      run: |
-        gcloud components install kubectl
-        gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --zone ${{ secrets.ZONE }} --project ${{ secrets.PROJECT_ID }}
+    # # Step 6: Install and configure kubectl using gcloud
+    # - name: Install and configure kubectl
+    #   run: |
+    #     gcloud components install kubectl
+    #     gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --zone ${{ secrets.ZONE }} --project ${{ secrets.PROJECT_ID }}
 
     # Step 6: Get GKE credentials and deploy to GKE
     #- name: Get GKE credentials

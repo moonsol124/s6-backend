@@ -5,6 +5,15 @@ on:
     branches:
       - main  # Trigger on push to the main branch
 
+env:
+  # Define reusable environment variables
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  GKE_CLUSTER: ${{ secrets.CLUSTER_NAME }}
+  GKE_LOCATION: ${{ secrets.ZONE }} # Use ZONE or REGION as appropriate for your cluster
+  DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/hello-world-node # Replace 'hello-world-node' with your actual app image name
+  K8S_DEPLOYMENT: ${{ secrets.K8S_DEPLOYMENT_NAME }}
+  K8S_CONTAINER: ${{ secrets.K8S_CONTAINER_NAME }}
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -20,63 +29,58 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Authenticate to Google Cloud (Replaces old Step 2 & 3)
-    # Use google-github-actions/auth action for robust authentication
+    # Step 2: Authenticate to Google Cloud
     - id: 'auth'
-      uses: 'google-github-actions/auth@v1' # Use specific version (e.g., v1)
+      uses: 'google-github-actions/auth@v1'
       with:
-        # Option 1: Using the Service Account Key JSON (Your current method)
+        # Using Service Account Key JSON
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-        # Option 2: Using Workload Identity Federation (Recommended, more secure, keyless)
-        # Remove 'credentials_json' above and uncomment these lines if using WIF
+        # --- OR ---
+        # Using Workload Identity Federation (Recommended)
         # workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
         # service_account: 'your-service-account-email@your-project-id.iam.gserviceaccount.com'
 
-    # Step 3: Get GKE Credentials (uses the authentication from the previous step)
-    # No need to explicitly set project ID with 'gcloud config set' anymore,
-    # as the 'auth' action usually handles it, but 'get-gke-credentials' still needs it.
+    # Step 3: Get GKE Credentials for kubectl
     - name: Get GKE Credentials
-      # Ensure you use a specific version like v1
       uses: google-github-actions/get-gke-credentials@v1
       with:
-        cluster_name: ${{ secrets.CLUSTER_NAME }}
-        location: ${{ secrets.ZONE }}      # Make sure this is correct (zone or region)
-        project_id: ${{ secrets.PROJECT_ID }} # Needs to match the project associated with your SA key or WIF setup
+        cluster_name: ${{ env.GKE_CLUSTER }}
+        location: ${{ env.GKE_LOCATION }}
+        project_id: ${{ env.PROJECT_ID }}
 
-    # Step 4: Verify Kubernetes Cluster connection
-    - name: Verify Kubernetes Cluster
+    # Step 4: Authenticate Docker to Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2 # Use dedicated action for robustness
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # Step 5: Build and push Docker image to Docker Hub
+    - name: Build and Push Docker Image
       run: |
-        echo "Current kubectl context:"
-        kubectl config current-context
-        echo "Nodes in the cluster:"
-        kubectl get nodes
-    # # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
-    # - name: Authenticate Docker to Docker Hub
-    #   run: |
-    #     echo ${{ secrets.DOCKER_PASSWORD }} | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        # Generate a unique tag based on the commit SHA
+        IMAGE_TAG=${{ github.sha }}
+        FULL_IMAGE_NAME="docker.io/${{ env.DOCKER_IMAGE_NAME }}:${IMAGE_TAG}"
+        LATEST_IMAGE_NAME="docker.io/${{ env.DOCKER_IMAGE_NAME }}:latest"
 
+        echo "Building image: ${FULL_IMAGE_NAME}"
+        docker build -t "${FULL_IMAGE_NAME}" -t "${LATEST_IMAGE_NAME}" .
 
-    # # Step 5: Build and push Docker image to Docker Hub
-    # - name: Build and push Docker image
-    #   run: |
-    #     IMAGE=docker.io/${{ secrets.DOCKER_USERNAME }}/hello-world-node:latest
-    #     docker build -t $IMAGE .
-    #     docker push $IMAGE
+        echo "Pushing image with tag: ${IMAGE_TAG}"
+        docker push "${FULL_IMAGE_NAME}"
 
-    # # Step 6: Install and configure kubectl using gcloud
-    # - name: Install and configure kubectl
-    #   run: |
-    #     gcloud components install kubectl
-    #     gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --zone ${{ secrets.ZONE }} --project ${{ secrets.PROJECT_ID }}
+        echo "Pushing image with tag: latest"
+        docker push "${LATEST_IMAGE_NAME}"
 
-    # Step 6: Get GKE credentials and deploy to GKE
-    #- name: Get GKE credentials
-    #  run: |
-    #    gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --zone ${{ secrets.ZONE }} --project ${{ secrets.PROJECT_ID }}
+        # Store the full image name with SHA tag for the deployment step
+        echo "IMAGE_TO_DEPLOY=${FULL_IMAGE_NAME}" >> $GITHUB_ENV
 
-    # Step 7: Update the Kubernetes deployment with the new Docker image
-    #- name: Deploy to GKE
-    #  run: |
-    #    kubectl set image deployment/YOUR_DEPLOYMENT_NAME YOUR_CONTAINER_NAME=docker.io/YOUR_USERNAME/YOUR_APP_NAME:latest
-    #    kubectl rollout status deployment/YOUR_DEPLOYMENT_NAME
+    # Step 6: Deploy to GKE by updating the image
+    - name: Deploy to GKE
+      run: |
+        echo "Updating deployment '${{ env.K8S_DEPLOYMENT }}' container '${{ env.K8S_CONTAINER }}' with image '${{ env.IMAGE_TO_DEPLOY }}'"
+        kubectl set image deployment/${{ env.K8S_DEPLOYMENT }} ${{ env.K8S_CONTAINER }}=${{ env.IMAGE_TO_DEPLOY }} --record # --record adds annotation for rollout history
+
+        echo "Waiting for rollout to complete..."
+        kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT }} --timeout=5m # Adjust timeout as needed
+

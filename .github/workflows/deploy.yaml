@@ -34,7 +34,7 @@ jobs:
       uses: 'google-github-actions/auth@v1'
       with:
         # Using Service Account Key JSON
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+        credentials_json: '${{ secrets.GCP_SA_KEY }}' 
         # --- OR ---
         # Using Workload Identity Federation (Recommended)
         # workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'

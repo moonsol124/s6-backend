@@ -15,15 +15,26 @@ jobs:
       uses: actions/checkout@v3
 
     # Step 2: Authenticate with Google Cloud using the service account key
-    - name: Validate JSON file
+    - name: Authenticate with Google Cloud
       run: |
+        # Save the GCP SA key to a file
         echo "${{ secrets.GCP_SA_KEY }}" > "${HOME}/gcloud-service-key.json"
 
-        # Check if the file is a valid JSON file
+        # Debugging: Print the raw content of the JSON secret and the first few lines of the file
+        echo "Raw content of GCP SA Key secret (only showing part of it):"
+        echo "${{ secrets.GCP_SA_KEY }}" | head -n 10
+
+        # Print the first few lines of the file to see its content
+        echo "First few lines of the JSON file:"
+        head -n 10 "${HOME}/gcloud-service-key.json"
+
+        # Check if the file is a valid JSON file using jq
         if jq empty "${HOME}/gcloud-service-key.json" > /dev/null 2>&1; then
-          echo "TRUE"
+          echo "TRUE: Valid JSON"
+          # Proceed to authenticate with GCloud
+          gcloud auth activate-service-account --key-file="${HOME}/gcloud-service-key.json"
         else
-          echo "FALSE"
+          echo "FALSE: Invalid JSON"
         fi
     
     # Step 3: Set the project ID for subsequent Google Cloud commands

@@ -22,12 +22,13 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         export_default_credentials: true
 
-    # Step 3: Decode and authenticate with the Google Cloud service account
-    - name: Decode and authenticate with service account
-      run: |
-        echo "${{ secrets.GCP_SA_KEY_BASE64 }}" | base64 --decode > /tmp/gcp-sa-key.json
-        gcloud auth activate-service-account --key-file=/tmp/gcp-sa-key.json
-        
+    # Step 3: Get GKE Credentials for kubectl
+    - name: Get GKE Credentials
+      uses: google-github-actions/get-gke-credentials@v1
+      with:
+        cluster_name: ${{ secrets.CLUSTER_NAME }}   # Replace with your GKE cluster name
+        location: ${{ secrets.ZONE }}  # Replace with your GKE cluster zone or region
+
     # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
     - name: Authenticate Docker to Docker Hub
       run: |

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-world-node
+  template:
+    metadata:
+      labels:
+        app: hello-world-node
+    spec:
+      containers:
+      - name: hello-world-node
+        image: moonsol124/hello-world-node:latest
+        ports:
+        - containerPort: 3000

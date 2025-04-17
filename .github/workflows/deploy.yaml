@@ -22,10 +22,10 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         export_default_credentials: true
 
-    # Step 3: Explicitly authenticate the service account with gcloud
-    - name: Authenticate with Google Cloud service account
+    # Step 3: Decode and authenticate with the Google Cloud service account
+    - name: Decode and authenticate with service account
       run: |
-        echo "${{ secrets.GCP_SA_KEY }}" > /tmp/gcp-sa-key.json
+        echo "${{ secrets.GCP_SA_KEY_BASE64 }}" | base64 --decode > /tmp/gcp-sa-key.json
         gcloud auth activate-service-account --key-file=/tmp/gcp-sa-key.json
         
     # Step 4: Authenticate Docker to Docker Hub (instead of GCR)

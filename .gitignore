@@ -3,3 +3,6 @@ deploy.sh
 node_modules/
 npm-debug.log
 db-secret.yaml
+deployment.yaml
+service.yaml
+

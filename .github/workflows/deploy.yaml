@@ -12,7 +12,7 @@ env:
   GKE_LOCATION: ${{ secrets.ZONE }} # Use ZONE or REGION as appropriate for your cluster
   DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/hello-world-node # Replace 'hello-world-node' with your actual app image name
   K8S_DEPLOYMENT: ${{ secrets.K8S_DEPLOYMENT_NAME }}
-  K8S_CONTAINER: ${{ secrets.K8S_CONTAINER_NAME }}
+  K8S_CONTAINER: ${{ secrets.K8S_CONTAINER_NAME }} 
 
 jobs:
   build-and-deploy:

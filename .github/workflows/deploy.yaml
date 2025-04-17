@@ -28,6 +28,7 @@ jobs:
       with:
         cluster_name: ${{ secrets.CLUSTER_NAME }}   # Replace with your GKE cluster name
         location: ${{ secrets.ZONE }}  # Replace with your GKE cluster zone or region
+        project_id: ${{ secrets.PROJECT_ID }} # Explicitly specify the project ID
 
     # Step 4: Authenticate Docker to Docker Hub (instead of GCR)
     - name: Authenticate Docker to Docker Hub

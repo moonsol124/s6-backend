@@ -88,7 +88,7 @@ app.get('/asset', async (req, res) => {
     if (!pool) {
          return res.status(503).json({ error: 'Database connection not available' });
     }
-    const queryText = 'SELECT * FROM asset';
+    const queryText = 'SELECT * FROM asset INNER JOIN city_asset ON asset.id = city_asset.asset_id;';
     try {
         const result = await pool.request().query(queryText);
         console.log(`Successfully fetched ${result.recordset.length} assets`);
